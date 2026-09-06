@@ -1,0 +1,15 @@
+{
+  "name": "opencode-node",
+  "version": "1.18.29",
+  "description": "opencode.ai CLI built for Node.js (compatible with older CPUs without SSE 4.2/AVX)",
+  "type": "module",
+  "bin": {
+    "opencode": "./opencode.mjs"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "1.2.0-beta.12"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
