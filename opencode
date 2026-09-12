@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# opencode launcher - uses bundled Node.js (compatible with old CPUs)
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec "$DIR/node" "$DIR/opencode.mjs" "$@"

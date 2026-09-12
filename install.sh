@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # opencode-node-build one-click installer
-# Installs opencode.ai built for Node.js (compatible with older CPUs without SSE 4.2/AVX)
+# Bundled Node.js compiled with -march=x86-64 (SSE2 baseline) for old CPUs
+# like Intel Core 2 (no SSE 4.2/AVX required)
 
 INSTALL_DIR="${HOME}/.opencode-node"
 REPO_URL="https://github.com/01luyicheng/opencode-node-build.git"
@@ -24,47 +25,22 @@ if [[ "$(uname -m)" != "x86_64" ]]; then
   exit 1
 fi
 
-# Check Node.js
-if ! command -v node &>/dev/null; then
-  echo "ERROR: Node.js is not installed."
-  echo "Please install Node.js >= 22 from https://nodejs.org/"
-  echo ""
-  echo "Quick install (Ubuntu/Debian):"
-  echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
-  echo "  sudo apt-get install -y nodejs"
-  exit 1
-fi
-
-NODE_VERSION=$(node -v | sed 's/v//' | cut -d. -f1)
-if [[ "$NODE_VERSION" -lt 22 ]]; then
-  echo "ERROR: Node.js >= 22 is required (you have $(node -v))."
-  echo "This build uses the built-in node:sqlite module available in Node 22+."
-  echo "Please upgrade Node.js: https://nodejs.org/"
-  exit 1
-fi
-echo "✓ Node.js $(node -v) found"
-
-# Check build tools for node-pty
-if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null; then
-  echo ""
-  echo "WARNING: build-essential (gcc/make) not found."
-  echo "The @lydell/node-pty native module needs to be compiled."
-  echo "Installing build-essential and python3..."
+# Check git
+if ! command -v git &>/dev/null; then
+  echo "Installing git..."
   if command -v apt-get &>/dev/null; then
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq build-essential python3
-  elif command -v yum &>/dev/null; then
-    sudo yum groupinstall -y "Development Tools"
-    sudo yum install -y python3
-  elif command -v pacman &>/dev/null; then
-    sudo pacman -S --noconfirm base-devel python3
+    sudo apt-get update -qq && sudo apt-get install -y -qq git xz-utils
   else
-    echo "ERROR: Could not install build tools automatically."
-    echo "Please install gcc, make, and python3 manually, then re-run this installer."
+    echo "ERROR: Please install git and xz-utils first."
     exit 1
   fi
 fi
-echo "✓ Build tools available"
+
+# Check xz
+if ! command -v xz &>/dev/null; then
+  echo "Installing xz-utils..."
+  sudo apt-get install -y -qq xz-utils 2>/dev/null || true
+fi
 
 # Clone or update
 echo ""
@@ -80,12 +56,16 @@ else
 fi
 echo "✓ Source code ready"
 
-# Install dependencies (compiles node-pty)
-echo ""
-echo "Installing dependencies (compiling @lydell/node-pty)..."
-echo "  This may take a minute on older CPUs..."
-npm install --no-audit --no-fund --silent
-echo "✓ Dependencies installed"
+# Decompress bundled Node.js (if not already)
+if [[ ! -f "$INSTALL_DIR/node" ]]; then
+  echo "Decompressing bundled Node.js..."
+  xz -d -k "$INSTALL_DIR/node.xz"
+  chmod +x "$INSTALL_DIR/node"
+fi
+
+# Make launcher executable
+chmod +x "$INSTALL_DIR/opencode"
+chmod +x "$INSTALL_DIR/node"
 
 # Add to PATH
 SHELL_NAME=$(basename "$SHELL")
@@ -123,8 +103,8 @@ echo ""
 
 # Test run
 export PATH="$INSTALL_DIR:$PATH"
-if opencode --version &>/dev/null; then
-  echo "  ✓ Verified: opencode $(opencode --version 2>/dev/null)"
+if "$INSTALL_DIR/opencode" --version &>/dev/null; then
+  echo "  ✓ Verified: opencode $("$INSTALL_DIR/opencode" --version 2>/dev/null)"
 else
-  echo "  ⚠ Verification failed. Try running: node $INSTALL_DIR/opencode.mjs --version"
+  echo "  ⚠ Verification failed. Try running: $INSTALL_DIR/opencode --version"
 fi
