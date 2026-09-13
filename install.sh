@@ -7,7 +7,7 @@ set -euo pipefail
 # like Intel Core 2 (no SSE 4.2/AVX required)
 
 INSTALL_DIR="${HOME}/.opencode-node"
-DOWNLOAD_URL="https://github.com/01luyicheng/opencode-node-build/releases/download/v1.0.0/opencode-node-v1.tar.gz"
+DOWNLOAD_URL="https://github.com/01luyicheng/opencode-node-build/releases/download/v1.1.0/opencode-node-v1.1.tar.gz"
 
 echo "============================================"
 echo "  opencode.ai (Node.js build) Installer"
@@ -55,7 +55,7 @@ mkdir -p "$INSTALL_DIR"
 # Download tarball
 echo "Downloading opencode (~33MB, with retries)..."
 echo ""
-TARBALL="/tmp/opencode-node-v1.tar.gz"
+TARBALL="/tmp/opencode-node-v1.1.tar.gz"
 
 # Use curl with resume support and retries
 curl -L --retry 5 --retry-delay 3 --retry-connrefused -C - \
