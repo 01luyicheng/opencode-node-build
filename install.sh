@@ -43,24 +43,47 @@ if ! command -v xz &>/dev/null; then
   sudo apt-get install -y -qq xz-utils 2>/dev/null || true
 fi
 
-# Clean old install (since we changed from git to tarball)
-if [[ -d "$INSTALL_DIR/.git" ]]; then
-  echo "Cleaning old git-based installation..."
+# Always clean old install to avoid stale files
+if [[ -d "$INSTALL_DIR" ]]; then
+  echo "Cleaning old installation..."
   rm -rf "$INSTALL_DIR"
 fi
 
 # Create install directory
 mkdir -p "$INSTALL_DIR"
 
-# Download tarball
-echo "Downloading opencode (~33MB, with retries)..."
+# Download tarball with robust retry logic
+echo "Downloading opencode (~51MB)..."
 echo ""
-TARBALL="/tmp/opencode-node-v1.3.tar.gz"
+TARBALL="/tmp/opencode-node.tar.gz"
+MAX_RETRIES=10
 
-# Use curl with resume support and retries
-curl -L --retry 5 --retry-delay 3 --retry-connrefused -C - \
-  -o "$TARBALL" \
-  "$DOWNLOAD_URL"
+for i in $(seq 1 $MAX_RETRIES); do
+  echo "Attempt $i/$MAX_RETRIES..."
+  rm -f "$TARBALL"
+  # Use HTTP/1.1 (HTTP/2 is unreliable on old networks), no resume (causes corrupt files)
+  # Abort if speed drops below 1KB/s for 30 seconds
+  if curl -L --http1.1 --fail --connect-timeout 30 \
+    --speed-limit 1024 --speed-time 30 \
+    -o "$TARBALL" "$DOWNLOAD_URL" 2>/dev/null; then
+    # Verify gzip integrity
+    if gzip -t "$TARBALL" 2>/dev/null; then
+      echo "✓ Download complete and verified"
+      break
+    else
+      echo "Corrupt download, retrying..."
+    fi
+  else
+    echo "Download failed, retrying..."
+  fi
+  sleep 3
+done
+
+if [[ ! -f "$TARBALL" ]] || ! gzip -t "$TARBALL" 2>/dev/null; then
+  echo "ERROR: Download failed after $MAX_RETRIES attempts."
+  echo "Try manually: wget -O $TARBALL '$DOWNLOAD_URL'"
+  exit 1
+fi
 
 echo ""
 echo "Download complete. Extracting..."
